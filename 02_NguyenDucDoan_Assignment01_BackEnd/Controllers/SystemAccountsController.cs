@@ -43,25 +43,39 @@ public class SystemAccountsController : ODataController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var created = await _service.CreateAsync(dto);
-        return Created(created); // Trả về Status 201 Created chuẩn OData
+        try
+        {
+            var created = await _service.CreateAsync(dto);
+            return StatusCode(201, created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message }); // Bắt lỗi trùng Email
+        }
     }
 
     /// <summary>PUT update an existing system account (Admin only)</summary>
-    [HttpPut("({id:int})")]
+    [HttpPut("{id:int}")]
     public async Task<IActionResult> Put([FromRoute] short id, [FromBody] SystemAccountUpdateDTO dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var updated = await _service.UpdateAsync(id, dto);
-        if (updated == null)
-            return NotFound(new { message = $"Account with ID {id} not found." });
+        try
+        {
+            var updated = await _service.UpdateAsync(id, dto);
+            if (updated == null)
+                return NotFound(new { message = $"Account with ID {id} not found." });
 
-        return Updated(updated); // Trả về Status 200/204 chuẩn OData cho hàm Update
+            return Ok(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message }); // Bắt lỗi trùng Email khi update
+        }
     }
 
     /// <summary>DELETE a system account (Admin only) - fails if account has news articles</summary>
-    [HttpDelete("({id:int})")]
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete([FromRoute] short id)
     {
         try

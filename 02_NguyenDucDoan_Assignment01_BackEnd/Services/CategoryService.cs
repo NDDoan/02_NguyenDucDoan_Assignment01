@@ -44,13 +44,15 @@ public class CategoryService : ICategoryService
 
     public async Task<CategoryDTO> CreateAsync(CategoryCreateDTO dto)
     {
-        short nextId = 1;
-        if (await _context.Categories.AnyAsync())
-            nextId = (short)(await _context.Categories.MaxAsync(c => c.CategoryId) + 1);
+        if (dto.ParentCategoryId.HasValue)
+        {
+            var parentExists = await _context.Categories.AnyAsync(c => c.CategoryId == dto.ParentCategoryId.Value);
+            if (!parentExists)
+                throw new InvalidOperationException($"Parent category with ID {dto.ParentCategoryId.Value} does not exist.");
+        }
 
         var category = new Category
         {
-            CategoryId = nextId,
             CategoryName = dto.CategoryName,
             CategoryDesciption = dto.CategoryDesciption,
             ParentCategoryId = dto.ParentCategoryId,
@@ -59,6 +61,7 @@ public class CategoryService : ICategoryService
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
+
         return MapToDTO(category);
     }
 
@@ -66,6 +69,18 @@ public class CategoryService : ICategoryService
     {
         var category = await _context.Categories.FindAsync(id);
         if (category == null) return null;
+
+        if (dto.ParentCategoryId.HasValue)
+        {
+            if (dto.ParentCategoryId.Value == id)
+                throw new InvalidOperationException("A category cannot be its own parent.");
+
+            var parentExists = await _context.Categories.AnyAsync(c => c.CategoryId == dto.ParentCategoryId.Value);
+            if (!parentExists)
+                throw new InvalidOperationException($"Parent category with ID {dto.ParentCategoryId.Value} does not exist.");
+        }
+
+
 
         category.CategoryName = dto.CategoryName;
         category.CategoryDesciption = dto.CategoryDesciption;

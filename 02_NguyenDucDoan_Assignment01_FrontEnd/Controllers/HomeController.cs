@@ -1,21 +1,36 @@
 using _02_NguyenDucDoan_Assignment01_FrontEnd.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
 {
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
+        private readonly IHttpClientFactory _clientFactory;
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController(ILogger<HomeController> logger, IHttpClientFactory clientFactory)
         {
             _logger = logger;
+            _clientFactory = clientFactory;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            return View();
+            var client = _clientFactory.CreateClient("BackendAPI");
+            var response = await client.GetAsync("api/NewsArticles/active");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var articles = JsonSerializer.Deserialize<List<NewsArticleDTO>>(
+                    content,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                );
+                return View(articles);
+            }
+            return View(new List<NewsArticleDTO>());
         }
 
         public IActionResult Privacy()

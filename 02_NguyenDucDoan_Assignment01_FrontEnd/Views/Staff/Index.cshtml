@@ -1,0 +1,18 @@
+@{
+    ViewData["Title"] = "Staff Dashboard";
+}
+
+<div class="row">
+    <div class="col-md-3">
+        <ul class="list-group">
+            <li class="list-group-item"><a asp-controller="Categories" asp-action="Index" class="text-decoration-none">Manage Categories</a></li>
+            <li class="list-group-item"><a asp-controller="NewsArticles" asp-action="Index" class="text-decoration-none">Manage News Articles</a></li>
+            <li class="list-group-item"><a asp-action="Profile" class="text-decoration-none">My Profile</a></li>
+            <li class="list-group-item"><a asp-action="History" class="text-decoration-none">News History</a></li>
+        </ul>
+    </div>
+    <div class="col-md-9">
+        <h2>Welcome to Staff Dashboard</h2>
+        <p>Select an option from the menu.</p>
+    </div>
+</div>

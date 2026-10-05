@@ -37,6 +37,9 @@ public class SystemAccountService : ISystemAccountService
 
     public async Task<SystemAccountDTO> CreateAsync(SystemAccountCreateDTO dto)
     {
+        if (await _context.SystemAccounts.AnyAsync(a => a.AccountEmail == dto.AccountEmail))
+            throw new InvalidOperationException("Email is already in use.");
+
         // Generate next AccountId
         short nextId = 1;
         if (await _context.SystemAccounts.AnyAsync())
@@ -60,6 +63,12 @@ public class SystemAccountService : ISystemAccountService
     {
         var account = await _context.SystemAccounts.FindAsync(id);
         if (account == null) return null;
+
+        if (!string.Equals(account.AccountEmail, dto.AccountEmail, StringComparison.OrdinalIgnoreCase) &&
+            await _context.SystemAccounts.AnyAsync(a => a.AccountEmail == dto.AccountEmail && a.AccountId != id))
+        {
+            throw new InvalidOperationException("Email is already in use by another account.");
+        }
 
         account.AccountName = dto.AccountName;
         account.AccountEmail = dto.AccountEmail;

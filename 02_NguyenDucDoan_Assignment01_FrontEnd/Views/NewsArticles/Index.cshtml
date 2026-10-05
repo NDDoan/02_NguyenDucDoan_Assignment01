@@ -1,0 +1,172 @@
+@model IEnumerable<_02_NguyenDucDoan_Assignment01_FrontEnd.Models.NewsArticleDTO>
+@{
+    ViewData["Title"] = "Manage News Articles";
+}
+
+<div class="row mb-3">
+    <div class="col-md-9">
+        <h2>Manage News Articles</h2>
+    </div>
+    <div class="col-md-3 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">Add New</button>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Created By</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.NewsArticleId</td>
+                <td>@item.NewsTitle</td>
+                <td>@item.CategoryName</td>
+                <td>@(item.NewsStatus == true ? "Active" : "Inactive")</td>
+                <td>@item.CreatedByName</td>
+                <td>
+                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#updateModal-@item.NewsArticleId">Edit</button>
+                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-@item.NewsArticleId">Delete</button>
+                </td>
+            </tr>
+
+            <!-- Update Modal -->
+            <div class="modal fade" id="updateModal-@item.NewsArticleId" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form asp-action="Update" method="post">
+                            <input type="hidden" name="id" value="@item.NewsArticleId" />
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit News Article</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Title</label>
+                                    <input type="text" name="NewsTitle" class="form-control" value="@item.NewsTitle" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Headline</label>
+                                    <input type="text" name="Headline" class="form-control" value="@item.Headline" required />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Content</label>
+                                    <textarea name="NewsContent" class="form-control" rows="3">@item.NewsContent</textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Source</label>
+                                    <input type="text" name="NewsSource" class="form-control" value="@item.NewsSource" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Category ID</label>
+                                    <input type="number" name="CategoryId" class="form-control" value="@item.CategoryId" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select name="NewsStatus" class="form-select">
+                                        <option value="true" selected="@(item.NewsStatus == true)">Active</option>
+                                        <option value="false" selected="@(item.NewsStatus == false)">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Modal -->
+            <div class="modal fade" id="deleteModal-@item.NewsArticleId" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form asp-action="Delete" method="post">
+                            <input type="hidden" name="id" value="@item.NewsArticleId" />
+                            <div class="modal-header">
+                                <h5 class="modal-title">Delete Confirmation</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                Are you sure you want to delete article: <strong>@item.NewsTitle</strong>?
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </tbody>
+</table>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="Create" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create News Article</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Article ID</label>
+                        <input type="text" name="NewsArticleId" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" name="NewsTitle" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Headline</label>
+                        <input type="text" name="Headline" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Content</label>
+                        <textarea name="NewsContent" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Source</label>
+                        <input type="text" name="NewsSource" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category ID</label>
+                        <input type="number" name="CategoryId" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="NewsStatus" class="form-select">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

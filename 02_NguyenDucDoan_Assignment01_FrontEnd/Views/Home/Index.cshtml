@@ -1,8 +1,39 @@
-﻿@{
+@model IEnumerable<_02_NguyenDucDoan_Assignment01_FrontEnd.Models.NewsArticleDTO>
+@{
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="text-center mb-5">
+    <h1 class="display-4">Welcome to FUNewsManagementSystem</h1>
+    <p>Read the latest news below.</p>
+</div>
+
+<div class="row">
+    @if (Model != null && Model.Any())
+    {
+        foreach (var item in Model.OrderByDescending(m => m.CreatedDate))
+        {
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">@item.NewsTitle</h5>
+                        <h6 class="card-subtitle mb-2 text-muted">@item.Headline</h6>
+                        <p class="card-text text-truncate">@item.NewsContent</p>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <small class="text-muted">
+                            <span class="badge bg-secondary">@item.CategoryName</span> | 
+                            By @item.CreatedByName on @(item.CreatedDate?.ToString("MMM dd, yyyy"))
+                        </small>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-12 text-center">
+            <p class="text-muted">No active news articles found.</p>
+        </div>
+    }
 </div>

@@ -69,6 +69,21 @@ public class NewsArticleService : INewsArticleService
 
     public async Task<NewsArticleDTO> CreateAsync(NewsArticleCreateDTO dto)
     {
+        if (await _context.NewsArticles.AnyAsync(a => a.NewsArticleId == dto.NewsArticleId))
+            throw new InvalidOperationException($"NewsArticleId '{dto.NewsArticleId}' already exists.");
+
+        if (dto.CategoryId.HasValue)
+        {
+            if (!await _context.Categories.AnyAsync(c => c.CategoryId == dto.CategoryId.Value))
+                throw new InvalidOperationException($"Category with ID '{dto.CategoryId.Value}' does not exist.");
+        }
+
+        if (dto.CreatedById.HasValue)
+        {
+            if (!await _context.SystemAccounts.AnyAsync(a => a.AccountId == dto.CreatedById.Value))
+                throw new InvalidOperationException($"Account with ID '{dto.CreatedById.Value}' does not exist.");
+        }
+
         var article = new NewsArticle
         {
             NewsArticleId = dto.NewsArticleId,
@@ -107,6 +122,20 @@ public class NewsArticleService : INewsArticleService
 
         if (article == null) return null;
 
+        if (dto.CategoryId.HasValue)
+        {
+            if (!await _context.Categories.AnyAsync(c => c.CategoryId == dto.CategoryId.Value))
+                throw new InvalidOperationException($"Category with ID '{dto.CategoryId.Value}' does not exist.");
+        }
+
+        if (dto.UpdatedById.HasValue)
+        {
+            if (!await _context.SystemAccounts.AnyAsync(a => a.AccountId == dto.UpdatedById.Value))
+                throw new InvalidOperationException($"Account with ID '{dto.UpdatedById.Value}' does not exist.");
+        }
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+
         article.NewsTitle = dto.NewsTitle;
         article.Headline = dto.Headline;
         article.NewsContent = dto.NewsContent;
@@ -116,19 +145,29 @@ public class NewsArticleService : INewsArticleService
         article.UpdatedById = dto.UpdatedById;
         article.ModifiedDate = DateTime.UtcNow;
 
-        // Update tags
-        article.Tags.Clear();
-        if (dto.TagIds != null && dto.TagIds.Any())
+        try
         {
-            var tags = await _context.Tags
-                .Where(t => dto.TagIds.Contains(t.TagId))
-                .ToListAsync();
-            foreach (var tag in tags)
-                article.Tags.Add(tag);
-        }
+            article.Tags.Clear();
+            await _context.SaveChangesAsync();
 
-        await _context.SaveChangesAsync();
-        return await GetByIdAsync(id);
+            if (dto.TagIds != null && dto.TagIds.Any())
+            {
+                var tags = await _context.Tags
+                    .Where(t => dto.TagIds.Contains(t.TagId))
+                    .ToListAsync();
+                foreach (var tag in tags)
+                    article.Tags.Add(tag);
+
+                await _context.SaveChangesAsync();
+            }
+            await transaction.CommitAsync();
+            return await GetByIdAsync(id);
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<bool> DeleteAsync(string id)
@@ -140,8 +179,11 @@ public class NewsArticleService : INewsArticleService
         if (article == null) return false;
 
         article.Tags.Clear();
+        await _context.SaveChangesAsync();
+
         _context.NewsArticles.Remove(article);
         await _context.SaveChangesAsync();
+
         return true;
     }
 

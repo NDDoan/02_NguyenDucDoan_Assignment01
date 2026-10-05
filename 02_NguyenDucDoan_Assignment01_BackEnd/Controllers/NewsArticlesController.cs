@@ -35,7 +35,7 @@ public class NewsArticlesController : ODataController
     }
 
     /// <summary>GET a news article by ID using OData string route</summary>
-    [HttpGet("('{id}')")]
+    [HttpGet("{id}")]
     [EnableQuery]
     public async Task<IActionResult> GetById([FromRoute] string id)
     {
@@ -85,25 +85,39 @@ public class NewsArticlesController : ODataController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var created = await _service.CreateAsync(dto);
-        return Created(created); // Trả về Status 201 Created chuẩn OData
+        try
+        {
+            var created = await _service.CreateAsync(dto);
+            return StatusCode(201, created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message }); // Bắt lỗi trùng NewsArticleId
+        }
     }
 
     /// <summary>PUT update an existing news article (Staff only)</summary>
-    [HttpPut("('{id}')")]
+    [HttpPut("{id}")]
     public async Task<IActionResult> Put([FromRoute] string id, [FromBody] NewsArticleUpdateDTO dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var updated = await _service.UpdateAsync(id, dto);
-        if (updated == null)
-            return NotFound(new { message = $"News article with ID '{id}' not found." });
+        try
+        {
+            var updated = await _service.UpdateAsync(id, dto);
+            if (updated == null)
+                return NotFound(new { message = $"News article with ID '{id}' not found." });
 
-        return Updated(updated); // Trả về Status 200/204 chuẩn OData cho hàm Update
+            return Ok(updated); // Trả về Status 200 chuẩn MVC cho hàm Update
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>DELETE a news article (Staff only)</summary>
-    [HttpDelete("('{id}')")]
+    [HttpDelete("{id}")]
     public async Task<IActionResult> Delete([FromRoute] string id)
     {
         var result = await _service.DeleteAsync(id);

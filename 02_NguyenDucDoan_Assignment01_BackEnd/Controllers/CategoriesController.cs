@@ -27,7 +27,7 @@ public class CategoriesController : ODataController
     }
 
     /// <summary>GET a category by ID using OData convention or route</summary>
-    [HttpGet("({id:int})")]
+    [HttpGet("{id:int}")]
     [EnableQuery]
     public async Task<IActionResult> GetById([FromRoute] short id)
     {
@@ -65,25 +65,39 @@ public class CategoriesController : ODataController
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var created = await _service.CreateAsync(dto);
-        return Created(created); // Trả về Status 201 Created chuẩn OData
+        try
+        {
+            var created = await _service.CreateAsync(dto);
+            return StatusCode(201, created); // Trả về Status 201 Created chuẩn MVC
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>PUT update an existing category (Staff only)</summary>
-    [HttpPut("({id:int})")]
+    [HttpPut("{id:int}")]
     public async Task<IActionResult> Put([FromRoute] short id, [FromBody] CategoryUpdateDTO dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
-        var updated = await _service.UpdateAsync(id, dto);
-        if (updated == null)
-            return NotFound(new { message = $"Category with ID {id} not found." });
+        try
+        {
+            var updated = await _service.UpdateAsync(id, dto);
+            if (updated == null)
+                return NotFound(new { message = $"Category with ID {id} not found." });
 
-        return Updated(updated); // Trả về Status 200/204 chuẩn OData cho hàm Update
+            return Ok(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message }); // Bắt lỗi danh mục tự nhận làm cha
+        }
     }
 
     /// <summary>DELETE a category (Staff only) - fails if category has news articles</summary>
-    [HttpDelete("({id:int})")]
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete([FromRoute] short id)
     {
         try
