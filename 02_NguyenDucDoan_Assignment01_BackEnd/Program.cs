@@ -1,11 +1,23 @@
 using _02_NguyenDucDoan_Assignment01_BackEnd.Models;
 using _02_NguyenDucDoan_Assignment01_BackEnd.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.OData;
+using Microsoft.OData.ModelBuilder;
+using _02_NguyenDucDoan_Assignment01_BackEnd.DTOs;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure OData Model
+var modelBuilder = new ODataConventionModelBuilder();
+modelBuilder.EntitySet<SystemAccountDTO>("SystemAccounts").EntityType.HasKey(x => x.AccountId);
+modelBuilder.EntitySet<CategoryDTO>("Categories").EntityType.HasKey(x => x.CategoryId);
+modelBuilder.EntitySet<NewsArticleDTO>("NewsArticles").EntityType.HasKey(x => x.NewsArticleId);
+
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddOData(options => 
+    options.Select().Filter().OrderBy().Expand().Count().SetMaxTop(100)
+           .AddRouteComponents("odata", modelBuilder.GetEdmModel()));
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
