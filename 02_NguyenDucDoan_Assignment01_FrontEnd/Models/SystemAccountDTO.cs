@@ -64,4 +64,5 @@ public class LoginResponseDTO
     public string? AccountEmail { get; set; }
     public int? AccountRole { get; set; }
     public bool IsAdmin { get; set; }
+    public string? Token { get; set; }
 }

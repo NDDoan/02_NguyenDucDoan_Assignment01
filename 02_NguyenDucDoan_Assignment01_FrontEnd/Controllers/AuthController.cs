@@ -46,7 +46,8 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
                     new Claim(ClaimTypes.NameIdentifier, result.AccountId.ToString()),
                     new Claim(ClaimTypes.Email, result.AccountEmail),
                     new Claim(ClaimTypes.Name, result.AccountName ?? ""),
-                    new Claim("IsAdmin", result.IsAdmin.ToString())
+                    new Claim("IsAdmin", result.IsAdmin.ToString()),
+                    new Claim("Token", result.Token ?? "")
                 };
 
                 if (result.IsAdmin)

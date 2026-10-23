@@ -67,8 +67,24 @@
                                     <input type="text" name="CategoryDesciption" class="form-control" value="@item.CategoryDesciption" required />
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Parent Category ID</label>
-                                    <input type="number" name="ParentCategoryId" class="form-control" value="@item.ParentCategoryId" />
+                                    <label class="form-label">Parent Category</label>
+                                    <select name="ParentCategoryId" class="form-select">
+                                        <option value="">-- None --</option>
+                                        @foreach (var cat in Model)
+                                        {
+                                            if (cat.CategoryId != item.CategoryId) // Cannot be parent of itself
+                                            {
+                                                if (item.ParentCategoryId == cat.CategoryId)
+                                                {
+                                                    <option value="@cat.CategoryId" selected>@cat.CategoryName</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@cat.CategoryId">@cat.CategoryName</option>
+                                                }
+                                            }
+                                        }
+                                    </select>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Status</label>
@@ -131,8 +147,14 @@
                         <input type="text" name="CategoryDesciption" class="form-control" required />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Parent Category ID</label>
-                        <input type="number" name="ParentCategoryId" class="form-control" />
+                        <label class="form-label">Parent Category</label>
+                        <select name="ParentCategoryId" class="form-select">
+                            <option value="">-- None --</option>
+                            @foreach (var cat in Model)
+                            {
+                                <option value="@cat.CategoryId">@cat.CategoryName</option>
+                            }
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Status</label>

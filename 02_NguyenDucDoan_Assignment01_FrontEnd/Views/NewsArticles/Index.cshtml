@@ -75,8 +75,24 @@
                                     <input type="text" name="NewsSource" class="form-control" value="@item.NewsSource" />
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Category ID</label>
-                                    <input type="number" name="CategoryId" class="form-control" value="@item.CategoryId" />
+                                    <label class="form-label">Category</label>
+                                    <select name="CategoryId" class="form-select">
+                                        <option value="">-- Select Category --</option>
+                                        @if (ViewBag.Categories != null)
+                                        {
+                                            foreach (var cat in ViewBag.Categories as IEnumerable<_02_NguyenDucDoan_Assignment01_FrontEnd.Models.CategoryDTO>)
+                                            {
+                                                if (item.CategoryId == cat.CategoryId)
+                                                {
+                                                    <option value="@cat.CategoryId" selected>@cat.CategoryName</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@cat.CategoryId">@cat.CategoryName</option>
+                                                }
+                                            }
+                                        }
+                                    </select>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Status</label>
@@ -151,8 +167,17 @@
                         <input type="text" name="NewsSource" class="form-control" />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Category ID</label>
-                        <input type="number" name="CategoryId" class="form-control" />
+                        <label class="form-label">Category</label>
+                        <select name="CategoryId" class="form-select">
+                            <option value="">-- Select Category --</option>
+                            @if (ViewBag.Categories != null)
+                            {
+                                foreach (var cat in ViewBag.Categories as IEnumerable<_02_NguyenDucDoan_Assignment01_FrontEnd.Models.CategoryDTO>)
+                                {
+                                    <option value="@cat.CategoryId">@cat.CategoryName</option>
+                                }
+                            }
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Status</label>

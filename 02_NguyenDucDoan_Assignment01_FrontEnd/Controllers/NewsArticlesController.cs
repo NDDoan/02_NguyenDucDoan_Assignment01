@@ -22,6 +22,20 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
         public async Task<IActionResult> Index()
         {
             var client = _clientFactory.CreateClient("BackendAPI");
+            
+            // Fetch categories for dropdowns
+            var categoriesResponse = await client.GetAsync("api/Categories");
+            if (categoriesResponse.IsSuccessStatusCode)
+            {
+                var catContent = await categoriesResponse.Content.ReadAsStringAsync();
+                var categories = JsonSerializer.Deserialize<List<CategoryDTO>>(catContent, _jsonOptions);
+                ViewBag.Categories = categories;
+            }
+            else
+            {
+                ViewBag.Categories = new List<CategoryDTO>();
+            }
+
             var response = await client.GetAsync("api/NewsArticles");
 
             if (response.IsSuccessStatusCode)

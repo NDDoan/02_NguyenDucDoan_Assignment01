@@ -102,18 +102,36 @@ public class SystemAccountService : ISystemAccountService
         // Check admin account from appsettings
         var adminEmail = _configuration["AdminAccount:Email"];
         var adminPassword = _configuration["AdminAccount:Password"];
+        var jwtKey = _configuration["Jwt:Key"] ?? "this_is_a_fallback_secret_key_that_is_long_enough";
 
         if (!string.IsNullOrEmpty(adminEmail) &&
             dto.Email.Equals(adminEmail, StringComparison.OrdinalIgnoreCase) &&
             dto.Password == adminPassword)
         {
+            var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+            var key = System.Text.Encoding.ASCII.GetBytes(jwtKey);
+            var tokenDescriptor = new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
+            {
+                Subject = new System.Security.Claims.ClaimsIdentity(new[]
+                {
+                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "0"),
+                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, adminEmail),
+                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Administrator"),
+                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Admin")
+                }),
+                Expires = DateTime.UtcNow.AddHours(2),
+                SigningCredentials = new Microsoft.IdentityModel.Tokens.SigningCredentials(new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(key), Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256Signature)
+            };
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+
             return new LoginResponseDTO
             {
                 AccountId = 0,
                 AccountName = "Administrator",
                 AccountEmail = adminEmail,
                 AccountRole = 0,
-                IsAdmin = true
+                IsAdmin = true,
+                Token = tokenHandler.WriteToken(token)
             };
         }
 
@@ -123,13 +141,36 @@ public class SystemAccountService : ISystemAccountService
 
         if (account == null) return null;
 
+        var userTokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+        var userKey = System.Text.Encoding.ASCII.GetBytes(jwtKey);
+        var claims = new List<System.Security.Claims.Claim>
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, account.AccountId.ToString()),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, account.AccountEmail),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, account.AccountName ?? "")
+        };
+
+        if (account.AccountRole == 1)
+            claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Staff"));
+        else if (account.AccountRole == 2)
+            claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Lecturer"));
+
+        var userTokenDescriptor = new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
+        {
+            Subject = new System.Security.Claims.ClaimsIdentity(claims),
+            Expires = DateTime.UtcNow.AddHours(2),
+            SigningCredentials = new Microsoft.IdentityModel.Tokens.SigningCredentials(new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(userKey), Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256Signature)
+        };
+        var userToken = userTokenHandler.CreateToken(userTokenDescriptor);
+
         return new LoginResponseDTO
         {
             AccountId = account.AccountId,
             AccountName = account.AccountName,
             AccountEmail = account.AccountEmail,
             AccountRole = account.AccountRole,
-            IsAdmin = false
+            IsAdmin = false,
+            Token = userTokenHandler.WriteToken(userToken)
         };
     }
 }

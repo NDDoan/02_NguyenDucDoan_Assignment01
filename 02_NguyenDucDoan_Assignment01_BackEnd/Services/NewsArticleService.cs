@@ -43,7 +43,10 @@ public class NewsArticleService : INewsArticleService
             .Include(a => a.CreatedBy)
             .Include(a => a.Tags)
             .ToListAsync();
-        return articles.Select(MapToDTO);
+        return articles
+            .OrderBy(a => int.TryParse(a.NewsArticleId, out int id) ? id : int.MaxValue)
+            .ThenBy(a => a.NewsArticleId)
+            .Select(MapToDTO);
     }
 
     public async Task<IEnumerable<NewsArticleDTO>> GetActiveAsync()
@@ -54,7 +57,10 @@ public class NewsArticleService : INewsArticleService
             .Include(a => a.Tags)
             .Where(a => a.NewsStatus == true)
             .ToListAsync();
-        return articles.Select(MapToDTO);
+        return articles
+            .OrderBy(a => int.TryParse(a.NewsArticleId, out int id) ? id : int.MaxValue)
+            .ThenBy(a => a.NewsArticleId)
+            .Select(MapToDTO);
     }
 
     public async Task<NewsArticleDTO?> GetByIdAsync(string id)
@@ -197,7 +203,10 @@ public class NewsArticleService : INewsArticleService
                      || a.Headline.Contains(keyword)
                      || (a.NewsContent != null && a.NewsContent.Contains(keyword)))
             .ToListAsync();
-        return articles.Select(MapToDTO);
+        return articles
+            .OrderBy(a => int.TryParse(a.NewsArticleId, out int id) ? id : int.MaxValue)
+            .ThenBy(a => a.NewsArticleId)
+            .Select(MapToDTO);
     }
 
     public async Task<IEnumerable<NewsArticleDTO>> GetByCreatedByAsync(short createdById)
@@ -208,7 +217,10 @@ public class NewsArticleService : INewsArticleService
             .Include(a => a.Tags)
             .Where(a => a.CreatedById == createdById)
             .ToListAsync();
-        return articles.Select(MapToDTO);
+        return articles
+            .OrderBy(a => int.TryParse(a.NewsArticleId, out int id) ? id : int.MaxValue)
+            .ThenBy(a => a.NewsArticleId)
+            .Select(MapToDTO);
     }
 
     public async Task<IEnumerable<NewsStatisticDTO>> GetStatisticsAsync(DateTime startDate, DateTime endDate)

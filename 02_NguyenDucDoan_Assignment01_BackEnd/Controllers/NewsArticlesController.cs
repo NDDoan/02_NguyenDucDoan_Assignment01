@@ -3,6 +3,7 @@ using _02_NguyenDucDoan_Assignment01_BackEnd.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Routing.Controllers;
+using Microsoft.AspNetCore.Authorization;
 
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Controllers;
 
@@ -81,6 +82,7 @@ public class NewsArticlesController : ODataController
 
     /// <summary>POST create a new news article (Staff only)</summary>
     [HttpPost]
+    [Authorize(Roles = "Staff")]
     public async Task<IActionResult> Post([FromBody] NewsArticleCreateDTO dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -98,6 +100,7 @@ public class NewsArticlesController : ODataController
 
     /// <summary>PUT update an existing news article (Staff only)</summary>
     [HttpPut("{id}")]
+    [Authorize(Roles = "Staff")]
     public async Task<IActionResult> Put([FromRoute] string id, [FromBody] NewsArticleUpdateDTO dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -118,6 +121,7 @@ public class NewsArticlesController : ODataController
 
     /// <summary>DELETE a news article (Staff only)</summary>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Staff")]
     public async Task<IActionResult> Delete([FromRoute] string id)
     {
         var result = await _service.DeleteAsync(id);

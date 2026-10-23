@@ -3,6 +3,7 @@ using _02_NguyenDucDoan_Assignment01_BackEnd.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Routing.Controllers;
+using Microsoft.AspNetCore.Authorization;
 
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Controllers;
 
@@ -61,6 +62,7 @@ public class CategoriesController : ODataController
 
     /// <summary>POST create a new category (Staff only)</summary>
     [HttpPost]
+    [Authorize(Roles = "Staff")]
     public async Task<IActionResult> Post([FromBody] CategoryCreateDTO dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -78,6 +80,7 @@ public class CategoriesController : ODataController
 
     /// <summary>PUT update an existing category (Staff only)</summary>
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Staff")]
     public async Task<IActionResult> Put([FromRoute] short id, [FromBody] CategoryUpdateDTO dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -98,6 +101,7 @@ public class CategoriesController : ODataController
 
     /// <summary>DELETE a category (Staff only) - fails if category has news articles</summary>
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Staff")]
     public async Task<IActionResult> Delete([FromRoute] short id)
     {
         try

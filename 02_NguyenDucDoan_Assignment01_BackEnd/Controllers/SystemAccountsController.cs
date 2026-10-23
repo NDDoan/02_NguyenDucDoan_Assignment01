@@ -4,9 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Routing.Controllers;
 
+using Microsoft.AspNetCore.Authorization;
+
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Controllers;
 
 [Route("api/[controller]")]
+[Authorize(Roles = "Admin")]
 public class SystemAccountsController : ODataController
 {
     private readonly ISystemAccountService _service;
@@ -94,6 +97,7 @@ public class SystemAccountsController : ODataController
 
     /// <summary>POST login with email and password (Custom action, giữ nguyên logic chuẩn)</summary>
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginDTO dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
