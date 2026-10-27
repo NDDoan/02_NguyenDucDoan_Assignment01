@@ -21,6 +21,16 @@
     <div class="alert alert-danger">@TempData["Error"]</div>
 }
 
+<form method="get" asp-action="Index" class="row g-2 mb-3">
+    <div class="col-md-6">
+        <input type="text" name="keyword" class="form-control" placeholder="Search by category name or description..." value="@ViewBag.Keyword" />
+    </div>
+    <div class="col-md-auto">
+        <button type="submit" class="btn btn-outline-primary">Search</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Reset</a>
+    </div>
+</form>
+
 <table class="table table-striped">
     <thead>
         <tr>

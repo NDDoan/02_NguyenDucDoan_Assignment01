@@ -1,8 +1,8 @@
 @model IEnumerable<_02_NguyenDucDoan_Assignment01_FrontEnd.Models.NewsStatisticDTO>
 @{
     ViewData["Title"] = "Statistic Report";
-    DateTime? startDate = Context.Request.Query["startDate"].Count > 0 ? DateTime.Parse(Context.Request.Query["startDate"]) : (DateTime?)null;
-    DateTime? endDate = Context.Request.Query["endDate"].Count > 0 ? DateTime.Parse(Context.Request.Query["endDate"]) : (DateTime?)null;
+    DateTime? startDate = ViewBag.StartDate as DateTime?;
+    DateTime? endDate = ViewBag.EndDate as DateTime?;
 }
 
 <h2>Statistic Report</h2>

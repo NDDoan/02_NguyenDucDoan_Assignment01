@@ -41,42 +41,45 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
                 );
 
-                var claims = new List<Claim>
+                if (result != null)
                 {
-                    new Claim(ClaimTypes.NameIdentifier, result.AccountId.ToString()),
-                    new Claim(ClaimTypes.Email, result.AccountEmail),
-                    new Claim(ClaimTypes.Name, result.AccountName ?? ""),
-                    new Claim("IsAdmin", result.IsAdmin.ToString()),
-                    new Claim("Token", result.Token ?? "")
-                };
+                    var claims = new List<Claim>
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, result.AccountId.ToString()),
+                        new Claim(ClaimTypes.Email, result.AccountEmail ?? ""),
+                        new Claim(ClaimTypes.Name, result.AccountName ?? ""),
+                        new Claim("IsAdmin", result.IsAdmin.ToString()),
+                        new Claim("Token", result.Token ?? "")
+                    };
 
-                if (result.IsAdmin)
-                {
-                    claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                    if (result.IsAdmin)
+                    {
+                        claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                    }
+                    else
+                    {
+                        if (result.AccountRole == 1)
+                            claims.Add(new Claim(ClaimTypes.Role, "Staff"));
+                        else if (result.AccountRole == 2)
+                            claims.Add(new Claim(ClaimTypes.Role, "Lecturer"));
+                    }
+
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties
+                    {
+                        IsPersistent = true
+                    };
+
+                    await HttpContext.SignInAsync(
+                        CookieAuthenticationDefaults.AuthenticationScheme,
+                        new ClaimsPrincipal(claimsIdentity),
+                        authProperties);
+
+                    if (result.IsAdmin)
+                        return RedirectToAction("Index", "Admin");
+                    else
+                        return RedirectToAction("Index", "Staff");
                 }
-                else
-                {
-                    if (result.AccountRole == 1)
-                        claims.Add(new Claim(ClaimTypes.Role, "Staff"));
-                    else if (result.AccountRole == 2)
-                        claims.Add(new Claim(ClaimTypes.Role, "Lecturer"));
-                }
-
-                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var authProperties = new AuthenticationProperties
-                {
-                    IsPersistent = true
-                };
-
-                await HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    new ClaimsPrincipal(claimsIdentity),
-                    authProperties);
-
-                if (result.IsAdmin)
-                    return RedirectToAction("Index", "Admin");
-                else
-                    return RedirectToAction("Index", "Staff");
             }
 
             ViewBag.Error = "Invalid email or password.";

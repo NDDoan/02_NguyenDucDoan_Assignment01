@@ -1,6 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Models;
 
@@ -24,7 +26,27 @@ public partial class FunewsManagementContext : DbContext
     public virtual DbSet<Tag> Tags { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Name=ConnectionStrings:MyCnn");
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
+            var basePath = Directory.GetCurrentDirectory();
+            if (!File.Exists(Path.Combine(basePath, "appsettings.json")))
+            {
+                basePath = AppContext.BaseDirectory;
+            }
+
+            var config = new ConfigurationBuilder()
+                .SetBasePath(basePath)
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+                .Build();
+
+            var connectionString = config.GetConnectionString("MyCnn");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                optionsBuilder.UseSqlServer(connectionString);
+            }
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

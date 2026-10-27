@@ -19,7 +19,21 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         }
 
-        public async Task<IActionResult> Index()
+        private string ExtractErrorMessage(string rawContent, string defaultMessage)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(rawContent);
+                if (doc.RootElement.TryGetProperty("message", out var msgProp))
+                {
+                    return msgProp.GetString() ?? defaultMessage;
+                }
+            }
+            catch { }
+            return string.IsNullOrWhiteSpace(rawContent) ? defaultMessage : rawContent;
+        }
+
+        public async Task<IActionResult> Index(string? keyword)
         {
             var client = _clientFactory.CreateClient("BackendAPI");
             
@@ -29,14 +43,32 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             {
                 var catContent = await categoriesResponse.Content.ReadAsStringAsync();
                 var categories = JsonSerializer.Deserialize<List<CategoryDTO>>(catContent, _jsonOptions);
-                ViewBag.Categories = categories;
+                ViewBag.Categories = categories ?? new List<CategoryDTO>();
             }
             else
             {
                 ViewBag.Categories = new List<CategoryDTO>();
             }
 
-            var response = await client.GetAsync("api/NewsArticles");
+            // Fetch tags for checkbox list
+            var tagsResponse = await client.GetAsync("api/Tags");
+            if (tagsResponse.IsSuccessStatusCode)
+            {
+                var tagContent = await tagsResponse.Content.ReadAsStringAsync();
+                var tags = JsonSerializer.Deserialize<List<TagDTO>>(tagContent, _jsonOptions);
+                ViewBag.Tags = tags ?? new List<TagDTO>();
+            }
+            else
+            {
+                ViewBag.Tags = new List<TagDTO>();
+            }
+
+            var url = string.IsNullOrWhiteSpace(keyword)
+                ? "api/NewsArticles"
+                : $"api/NewsArticles/search?keyword={Uri.EscapeDataString(keyword.Trim())}";
+
+            ViewBag.Keyword = keyword;
+            var response = await client.GetAsync(url);
 
             if (response.IsSuccessStatusCode)
             {
@@ -68,7 +100,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to create article: {errorMsg}";
+                TempData["Error"] = $"Failed to create article: {ExtractErrorMessage(errorMsg, "Unknown error")}";
             }
             return RedirectToAction(nameof(Index));
         }
@@ -93,7 +125,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to update article: {errorMsg}";
+                TempData["Error"] = $"Failed to update article: {ExtractErrorMessage(errorMsg, "Unknown error")}";
             }
             return RedirectToAction(nameof(Index));
         }
@@ -111,7 +143,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to delete article: {errorMsg}";
+                TempData["Error"] = $"Failed to delete article: {ExtractErrorMessage(errorMsg, "Article cannot be deleted.")}";
             }
             return RedirectToAction(nameof(Index));
         }

@@ -9,5 +9,6 @@ public interface ISystemAccountService
     Task<SystemAccountDTO> CreateAsync(SystemAccountCreateDTO dto);
     Task<SystemAccountDTO?> UpdateAsync(short id, SystemAccountUpdateDTO dto);
     Task<bool> DeleteAsync(short id);
+    Task<IEnumerable<SystemAccountDTO>> SearchAsync(string keyword);
     Task<LoginResponseDTO?> LoginAsync(LoginDTO dto);
 }

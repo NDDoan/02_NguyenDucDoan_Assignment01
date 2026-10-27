@@ -19,6 +19,20 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         }
 
+        private string ExtractErrorMessage(string rawContent, string defaultMessage)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(rawContent);
+                if (doc.RootElement.TryGetProperty("message", out var msgProp))
+                {
+                    return msgProp.GetString() ?? defaultMessage;
+                }
+            }
+            catch { }
+            return string.IsNullOrWhiteSpace(rawContent) ? defaultMessage : rawContent;
+        }
+
         public IActionResult Index()
         {
             return View();
@@ -59,7 +73,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to update profile: {errorMsg}";
+                TempData["Error"] = $"Failed to update profile: {ExtractErrorMessage(errorMsg, "Unknown error")}";
             }
             return RedirectToAction(nameof(Profile));
         }

@@ -1,17 +1,21 @@
 using _02_NguyenDucDoan_Assignment01_BackEnd.DTOs;
 using _02_NguyenDucDoan_Assignment01_BackEnd.Models;
-using Microsoft.EntityFrameworkCore;
+using _02_NguyenDucDoan_Assignment01_BackEnd.Repositories;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Services;
 
 public class SystemAccountService : ISystemAccountService
 {
-    private readonly FunewsManagementContext _context;
+    private readonly ISystemAccountRepository _repository;
     private readonly IConfiguration _configuration;
 
-    public SystemAccountService(FunewsManagementContext context, IConfiguration configuration)
+    public SystemAccountService(ISystemAccountRepository repository, IConfiguration configuration)
     {
-        _context = context;
+        _repository = repository;
         _configuration = configuration;
     }
 
@@ -25,25 +29,22 @@ public class SystemAccountService : ISystemAccountService
 
     public async Task<IEnumerable<SystemAccountDTO>> GetAllAsync()
     {
-        var accounts = await _context.SystemAccounts.ToListAsync();
+        var accounts = await _repository.GetAllAsync();
         return accounts.Select(MapToDTO);
     }
 
     public async Task<SystemAccountDTO?> GetByIdAsync(short id)
     {
-        var account = await _context.SystemAccounts.FindAsync(id);
+        var account = await _repository.GetByIdAsync(id);
         return account == null ? null : MapToDTO(account);
     }
 
     public async Task<SystemAccountDTO> CreateAsync(SystemAccountCreateDTO dto)
     {
-        if (await _context.SystemAccounts.AnyAsync(a => a.AccountEmail == dto.AccountEmail))
+        if (await _repository.ExistsEmailAsync(dto.AccountEmail))
             throw new InvalidOperationException("Email is already in use.");
 
-        // Generate next AccountId
-        short nextId = 1;
-        if (await _context.SystemAccounts.AnyAsync())
-            nextId = (short)(await _context.SystemAccounts.MaxAsync(a => a.AccountId) + 1);
+        short nextId = await _repository.GetNextIdAsync();
 
         var account = new SystemAccount
         {
@@ -54,47 +55,37 @@ public class SystemAccountService : ISystemAccountService
             AccountPassword = dto.AccountPassword
         };
 
-        _context.SystemAccounts.Add(account);
-        await _context.SaveChangesAsync();
-        return MapToDTO(account);
+        var created = await _repository.CreateAsync(account);
+        return MapToDTO(created);
     }
 
     public async Task<SystemAccountDTO?> UpdateAsync(short id, SystemAccountUpdateDTO dto)
     {
-        var account = await _context.SystemAccounts.FindAsync(id);
-        if (account == null) return null;
+        var existing = await _repository.GetByIdAsync(id);
+        if (existing == null) return null;
 
-        if (!string.Equals(account.AccountEmail, dto.AccountEmail, StringComparison.OrdinalIgnoreCase) &&
-            await _context.SystemAccounts.AnyAsync(a => a.AccountEmail == dto.AccountEmail && a.AccountId != id))
-        {
+        if (await _repository.ExistsEmailOtherIdAsync(dto.AccountEmail, id))
             throw new InvalidOperationException("Email is already in use by another account.");
-        }
 
-        account.AccountName = dto.AccountName;
-        account.AccountEmail = dto.AccountEmail;
-        account.AccountRole = dto.AccountRole;
+        existing.AccountName = dto.AccountName;
+        existing.AccountEmail = dto.AccountEmail;
+        existing.AccountRole = dto.AccountRole;
         if (!string.IsNullOrWhiteSpace(dto.AccountPassword))
-            account.AccountPassword = dto.AccountPassword;
+            existing.AccountPassword = dto.AccountPassword;
 
-        await _context.SaveChangesAsync();
-        return MapToDTO(account);
+        var updated = await _repository.UpdateAsync(existing);
+        return updated == null ? null : MapToDTO(updated);
     }
 
     public async Task<bool> DeleteAsync(short id)
     {
-        var account = await _context.SystemAccounts
-            .Include(a => a.NewsArticles)
-            .FirstOrDefaultAsync(a => a.AccountId == id);
+        return await _repository.DeleteAsync(id);
+    }
 
-        if (account == null) return false;
-
-        // Cannot delete if account has created any news articles
-        if (account.NewsArticles.Any())
-            throw new InvalidOperationException("Cannot delete account that has created news articles.");
-
-        _context.SystemAccounts.Remove(account);
-        await _context.SaveChangesAsync();
-        return true;
+    public async Task<IEnumerable<SystemAccountDTO>> SearchAsync(string keyword)
+    {
+        var accounts = await _repository.SearchAsync(keyword);
+        return accounts.Select(MapToDTO);
     }
 
     public async Task<LoginResponseDTO?> LoginAsync(LoginDTO dto)
@@ -108,19 +99,19 @@ public class SystemAccountService : ISystemAccountService
             dto.Email.Equals(adminEmail, StringComparison.OrdinalIgnoreCase) &&
             dto.Password == adminPassword)
         {
-            var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-            var key = System.Text.Encoding.ASCII.GetBytes(jwtKey);
-            var tokenDescriptor = new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(jwtKey);
+            var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new System.Security.Claims.ClaimsIdentity(new[]
+                Subject = new ClaimsIdentity(new[]
                 {
-                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "0"),
-                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, adminEmail),
-                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Administrator"),
-                    new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Admin")
+                    new Claim(ClaimTypes.NameIdentifier, "0"),
+                    new Claim(ClaimTypes.Email, adminEmail),
+                    new Claim(ClaimTypes.Name, "Administrator"),
+                    new Claim(ClaimTypes.Role, "Admin")
                 }),
                 Expires = DateTime.UtcNow.AddHours(2),
-                SigningCredentials = new Microsoft.IdentityModel.Tokens.SigningCredentials(new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(key), Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256Signature)
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
             var token = tokenHandler.CreateToken(tokenDescriptor);
 
@@ -136,30 +127,29 @@ public class SystemAccountService : ISystemAccountService
         }
 
         // Check database accounts
-        var account = await _context.SystemAccounts
-            .FirstOrDefaultAsync(a => a.AccountEmail == dto.Email && a.AccountPassword == dto.Password);
+        var account = await _repository.GetByEmailAsync(dto.Email);
+        if (account == null || account.AccountPassword != dto.Password)
+            return null;
 
-        if (account == null) return null;
-
-        var userTokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-        var userKey = System.Text.Encoding.ASCII.GetBytes(jwtKey);
-        var claims = new List<System.Security.Claims.Claim>
+        var userTokenHandler = new JwtSecurityTokenHandler();
+        var userKey = Encoding.ASCII.GetBytes(jwtKey);
+        var claims = new List<Claim>
         {
-            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, account.AccountId.ToString()),
-            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, account.AccountEmail),
-            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, account.AccountName ?? "")
+            new Claim(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
+            new Claim(ClaimTypes.Email, account.AccountEmail ?? ""),
+            new Claim(ClaimTypes.Name, account.AccountName ?? "")
         };
 
         if (account.AccountRole == 1)
-            claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Staff"));
+            claims.Add(new Claim(ClaimTypes.Role, "Staff"));
         else if (account.AccountRole == 2)
-            claims.Add(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Lecturer"));
+            claims.Add(new Claim(ClaimTypes.Role, "Lecturer"));
 
-        var userTokenDescriptor = new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
+        var userTokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new System.Security.Claims.ClaimsIdentity(claims),
+            Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddHours(2),
-            SigningCredentials = new Microsoft.IdentityModel.Tokens.SigningCredentials(new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(userKey), Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256Signature)
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(userKey), SecurityAlgorithms.HmacSha256Signature)
         };
         var userToken = userTokenHandler.CreateToken(userTokenDescriptor);
 

@@ -7,6 +7,7 @@ using _02_NguyenDucDoan_Assignment01_BackEnd.DTOs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using _02_NguyenDucDoan_Assignment01_BackEnd.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,7 +49,13 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddDbContext<FunewsManagementContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
 
-// Register application services (Singleton pattern as per assignment)
+// Register repositories (Singleton/Scoped Repository pattern as per assignment)
+builder.Services.AddScoped<ITagRepository, TagRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ISystemAccountRepository, SystemAccountRepository>();
+builder.Services.AddScoped<INewsArticleRepository, NewsArticleRepository>();
+
+// Register application services
 builder.Services.AddScoped<ISystemAccountService, SystemAccountService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<INewsArticleService, NewsArticleService>();

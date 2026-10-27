@@ -1,16 +1,16 @@
 using _02_NguyenDucDoan_Assignment01_BackEnd.DTOs;
 using _02_NguyenDucDoan_Assignment01_BackEnd.Models;
-using Microsoft.EntityFrameworkCore;
+using _02_NguyenDucDoan_Assignment01_BackEnd.Repositories;
 
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Services;
 
 public class CategoryService : ICategoryService
 {
-    private readonly FunewsManagementContext _context;
+    private readonly ICategoryRepository _repository;
 
-    public CategoryService(FunewsManagementContext context)
+    public CategoryService(ICategoryRepository repository)
     {
-        _context = context;
+        _repository = repository;
     }
 
     private static CategoryDTO MapToDTO(Category category) => new()
@@ -24,21 +24,19 @@ public class CategoryService : ICategoryService
 
     public async Task<IEnumerable<CategoryDTO>> GetAllAsync()
     {
-        var categories = await _context.Categories.ToListAsync();
+        var categories = await _repository.GetAllAsync();
         return categories.Select(MapToDTO);
     }
 
     public async Task<IEnumerable<CategoryDTO>> GetActiveAsync()
     {
-        var categories = await _context.Categories
-            .Where(c => c.IsActive == true)
-            .ToListAsync();
+        var categories = await _repository.GetActiveAsync();
         return categories.Select(MapToDTO);
     }
 
     public async Task<CategoryDTO?> GetByIdAsync(short id)
     {
-        var category = await _context.Categories.FindAsync(id);
+        var category = await _repository.GetByIdAsync(id);
         return category == null ? null : MapToDTO(category);
     }
 
@@ -46,7 +44,7 @@ public class CategoryService : ICategoryService
     {
         if (dto.ParentCategoryId.HasValue)
         {
-            var parentExists = await _context.Categories.AnyAsync(c => c.CategoryId == dto.ParentCategoryId.Value);
+            var parentExists = await _repository.ExistsAsync(dto.ParentCategoryId.Value);
             if (!parentExists)
                 throw new InvalidOperationException($"Parent category with ID {dto.ParentCategoryId.Value} does not exist.");
         }
@@ -59,15 +57,13 @@ public class CategoryService : ICategoryService
             IsActive = dto.IsActive ?? true
         };
 
-        _context.Categories.Add(category);
-        await _context.SaveChangesAsync();
-
-        return MapToDTO(category);
+        var created = await _repository.CreateAsync(category);
+        return MapToDTO(created);
     }
 
     public async Task<CategoryDTO?> UpdateAsync(short id, CategoryUpdateDTO dto)
     {
-        var category = await _context.Categories.FindAsync(id);
+        var category = await _repository.GetByIdAsync(id);
         if (category == null) return null;
 
         if (dto.ParentCategoryId.HasValue)
@@ -75,44 +71,28 @@ public class CategoryService : ICategoryService
             if (dto.ParentCategoryId.Value == id)
                 throw new InvalidOperationException("A category cannot be its own parent.");
 
-            var parentExists = await _context.Categories.AnyAsync(c => c.CategoryId == dto.ParentCategoryId.Value);
+            var parentExists = await _repository.ExistsAsync(dto.ParentCategoryId.Value);
             if (!parentExists)
                 throw new InvalidOperationException($"Parent category with ID {dto.ParentCategoryId.Value} does not exist.");
         }
-
-
 
         category.CategoryName = dto.CategoryName;
         category.CategoryDesciption = dto.CategoryDesciption;
         category.ParentCategoryId = dto.ParentCategoryId;
         category.IsActive = dto.IsActive;
 
-        await _context.SaveChangesAsync();
-        return MapToDTO(category);
+        var updated = await _repository.UpdateAsync(category);
+        return updated == null ? null : MapToDTO(updated);
     }
 
     public async Task<bool> DeleteAsync(short id)
     {
-        var category = await _context.Categories
-            .Include(c => c.NewsArticles)
-            .FirstOrDefaultAsync(c => c.CategoryId == id);
-
-        if (category == null) return false;
-
-        // Cannot delete if category has news articles
-        if (category.NewsArticles.Any())
-            throw new InvalidOperationException("Cannot delete category that is already used by news articles.");
-
-        _context.Categories.Remove(category);
-        await _context.SaveChangesAsync();
-        return true;
+        return await _repository.DeleteAsync(id);
     }
 
     public async Task<IEnumerable<CategoryDTO>> SearchAsync(string keyword)
     {
-        var categories = await _context.Categories
-            .Where(c => c.CategoryName.Contains(keyword) || c.CategoryDesciption.Contains(keyword))
-            .ToListAsync();
+        var categories = await _repository.SearchAsync(keyword);
         return categories.Select(MapToDTO);
     }
 }

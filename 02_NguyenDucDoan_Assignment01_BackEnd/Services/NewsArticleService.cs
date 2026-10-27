@@ -1,16 +1,23 @@
 using _02_NguyenDucDoan_Assignment01_BackEnd.DTOs;
 using _02_NguyenDucDoan_Assignment01_BackEnd.Models;
-using Microsoft.EntityFrameworkCore;
+using _02_NguyenDucDoan_Assignment01_BackEnd.Repositories;
 
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Services;
 
 public class NewsArticleService : INewsArticleService
 {
-    private readonly FunewsManagementContext _context;
+    private readonly INewsArticleRepository _newsRepository;
+    private readonly ICategoryRepository _categoryRepository;
+    private readonly ISystemAccountRepository _accountRepository;
 
-    public NewsArticleService(FunewsManagementContext context)
+    public NewsArticleService(
+        INewsArticleRepository newsRepository,
+        ICategoryRepository categoryRepository,
+        ISystemAccountRepository accountRepository)
     {
-        _context = context;
+        _newsRepository = newsRepository;
+        _categoryRepository = categoryRepository;
+        _accountRepository = accountRepository;
     }
 
     private static NewsArticleDTO MapToDTO(NewsArticle article) => new()
@@ -38,11 +45,7 @@ public class NewsArticleService : INewsArticleService
 
     public async Task<IEnumerable<NewsArticleDTO>> GetAllAsync()
     {
-        var articles = await _context.NewsArticles
-            .Include(a => a.Category)
-            .Include(a => a.CreatedBy)
-            .Include(a => a.Tags)
-            .ToListAsync();
+        var articles = await _newsRepository.GetAllAsync();
         return articles
             .OrderBy(a => int.TryParse(a.NewsArticleId, out int id) ? id : int.MaxValue)
             .ThenBy(a => a.NewsArticleId)
@@ -51,12 +54,7 @@ public class NewsArticleService : INewsArticleService
 
     public async Task<IEnumerable<NewsArticleDTO>> GetActiveAsync()
     {
-        var articles = await _context.NewsArticles
-            .Include(a => a.Category)
-            .Include(a => a.CreatedBy)
-            .Include(a => a.Tags)
-            .Where(a => a.NewsStatus == true)
-            .ToListAsync();
+        var articles = await _newsRepository.GetActiveAsync();
         return articles
             .OrderBy(a => int.TryParse(a.NewsArticleId, out int id) ? id : int.MaxValue)
             .ThenBy(a => a.NewsArticleId)
@@ -65,28 +63,25 @@ public class NewsArticleService : INewsArticleService
 
     public async Task<NewsArticleDTO?> GetByIdAsync(string id)
     {
-        var article = await _context.NewsArticles
-            .Include(a => a.Category)
-            .Include(a => a.CreatedBy)
-            .Include(a => a.Tags)
-            .FirstOrDefaultAsync(a => a.NewsArticleId == id);
+        var article = await _newsRepository.GetByIdAsync(id);
         return article == null ? null : MapToDTO(article);
     }
 
     public async Task<NewsArticleDTO> CreateAsync(NewsArticleCreateDTO dto)
     {
-        if (await _context.NewsArticles.AnyAsync(a => a.NewsArticleId == dto.NewsArticleId))
+        if (await _newsRepository.ExistsAsync(dto.NewsArticleId))
             throw new InvalidOperationException($"NewsArticleId '{dto.NewsArticleId}' already exists.");
 
         if (dto.CategoryId.HasValue)
         {
-            if (!await _context.Categories.AnyAsync(c => c.CategoryId == dto.CategoryId.Value))
+            if (!await _categoryRepository.ExistsAsync(dto.CategoryId.Value))
                 throw new InvalidOperationException($"Category with ID '{dto.CategoryId.Value}' does not exist.");
         }
 
         if (dto.CreatedById.HasValue)
         {
-            if (!await _context.SystemAccounts.AnyAsync(a => a.AccountId == dto.CreatedById.Value))
+            var account = await _accountRepository.GetByIdAsync(dto.CreatedById.Value);
+            if (account == null)
                 throw new InvalidOperationException($"Account with ID '{dto.CreatedById.Value}' does not exist.");
         }
 
@@ -104,105 +99,51 @@ public class NewsArticleService : INewsArticleService
             ModifiedDate = DateTime.UtcNow
         };
 
-        // Attach tags
-        if (dto.TagIds != null && dto.TagIds.Any())
-        {
-            var tags = await _context.Tags
-                .Where(t => dto.TagIds.Contains(t.TagId))
-                .ToListAsync();
-            foreach (var tag in tags)
-                article.Tags.Add(tag);
-        }
-
-        _context.NewsArticles.Add(article);
-        await _context.SaveChangesAsync();
-
-        return await GetByIdAsync(article.NewsArticleId) ?? MapToDTO(article);
+        var created = await _newsRepository.CreateAsync(article, dto.TagIds);
+        return MapToDTO(created);
     }
 
     public async Task<NewsArticleDTO?> UpdateAsync(string id, NewsArticleUpdateDTO dto)
     {
-        var article = await _context.NewsArticles
-            .Include(a => a.Tags)
-            .FirstOrDefaultAsync(a => a.NewsArticleId == id);
-
+        var article = await _newsRepository.GetByIdAsync(id);
         if (article == null) return null;
 
         if (dto.CategoryId.HasValue)
         {
-            if (!await _context.Categories.AnyAsync(c => c.CategoryId == dto.CategoryId.Value))
+            if (!await _categoryRepository.ExistsAsync(dto.CategoryId.Value))
                 throw new InvalidOperationException($"Category with ID '{dto.CategoryId.Value}' does not exist.");
         }
 
         if (dto.UpdatedById.HasValue)
         {
-            if (!await _context.SystemAccounts.AnyAsync(a => a.AccountId == dto.UpdatedById.Value))
+            var account = await _accountRepository.GetByIdAsync(dto.UpdatedById.Value);
+            if (account == null)
                 throw new InvalidOperationException($"Account with ID '{dto.UpdatedById.Value}' does not exist.");
         }
 
-        using var transaction = await _context.Database.BeginTransactionAsync();
-
-        article.NewsTitle = dto.NewsTitle;
-        article.Headline = dto.Headline;
-        article.NewsContent = dto.NewsContent;
-        article.NewsSource = dto.NewsSource;
-        article.CategoryId = dto.CategoryId;
-        article.NewsStatus = dto.NewsStatus;
-        article.UpdatedById = dto.UpdatedById;
-        article.ModifiedDate = DateTime.UtcNow;
-
-        try
+        var updatedEntity = new NewsArticle
         {
-            article.Tags.Clear();
-            await _context.SaveChangesAsync();
+            NewsTitle = dto.NewsTitle,
+            Headline = dto.Headline,
+            NewsContent = dto.NewsContent,
+            NewsSource = dto.NewsSource,
+            CategoryId = dto.CategoryId,
+            NewsStatus = dto.NewsStatus,
+            UpdatedById = dto.UpdatedById
+        };
 
-            if (dto.TagIds != null && dto.TagIds.Any())
-            {
-                var tags = await _context.Tags
-                    .Where(t => dto.TagIds.Contains(t.TagId))
-                    .ToListAsync();
-                foreach (var tag in tags)
-                    article.Tags.Add(tag);
-
-                await _context.SaveChangesAsync();
-            }
-            await transaction.CommitAsync();
-            return await GetByIdAsync(id);
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
+        var updated = await _newsRepository.UpdateAsync(id, updatedEntity, dto.TagIds);
+        return updated == null ? null : MapToDTO(updated);
     }
 
     public async Task<bool> DeleteAsync(string id)
     {
-        var article = await _context.NewsArticles
-            .Include(a => a.Tags)
-            .FirstOrDefaultAsync(a => a.NewsArticleId == id);
-
-        if (article == null) return false;
-
-        article.Tags.Clear();
-        await _context.SaveChangesAsync();
-
-        _context.NewsArticles.Remove(article);
-        await _context.SaveChangesAsync();
-
-        return true;
+        return await _newsRepository.DeleteAsync(id);
     }
 
     public async Task<IEnumerable<NewsArticleDTO>> SearchAsync(string keyword)
     {
-        var articles = await _context.NewsArticles
-            .Include(a => a.Category)
-            .Include(a => a.CreatedBy)
-            .Include(a => a.Tags)
-            .Where(a => (a.NewsTitle != null && a.NewsTitle.Contains(keyword))
-                     || a.Headline.Contains(keyword)
-                     || (a.NewsContent != null && a.NewsContent.Contains(keyword)))
-            .ToListAsync();
+        var articles = await _newsRepository.SearchAsync(keyword);
         return articles
             .OrderBy(a => int.TryParse(a.NewsArticleId, out int id) ? id : int.MaxValue)
             .ThenBy(a => a.NewsArticleId)
@@ -211,12 +152,7 @@ public class NewsArticleService : INewsArticleService
 
     public async Task<IEnumerable<NewsArticleDTO>> GetByCreatedByAsync(short createdById)
     {
-        var articles = await _context.NewsArticles
-            .Include(a => a.Category)
-            .Include(a => a.CreatedBy)
-            .Include(a => a.Tags)
-            .Where(a => a.CreatedById == createdById)
-            .ToListAsync();
+        var articles = await _newsRepository.GetByCreatedByAsync(createdById);
         return articles
             .OrderBy(a => int.TryParse(a.NewsArticleId, out int id) ? id : int.MaxValue)
             .ThenBy(a => a.NewsArticleId)
@@ -225,12 +161,7 @@ public class NewsArticleService : INewsArticleService
 
     public async Task<IEnumerable<NewsStatisticDTO>> GetStatisticsAsync(DateTime startDate, DateTime endDate)
     {
-        var articles = await _context.NewsArticles
-            .Include(a => a.Category)
-            .Include(a => a.CreatedBy)
-            .Where(a => a.CreatedDate >= startDate && a.CreatedDate <= endDate)
-            .OrderByDescending(a => a.CreatedDate)
-            .ToListAsync();
+        var articles = await _newsRepository.GetStatisticsAsync(startDate, endDate);
 
         return articles.Select(a => new NewsStatisticDTO
         {

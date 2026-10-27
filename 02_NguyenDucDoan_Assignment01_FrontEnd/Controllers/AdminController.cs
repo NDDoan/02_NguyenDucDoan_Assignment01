@@ -18,15 +18,34 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         }
 
+        private string ExtractErrorMessage(string rawContent, string defaultMessage)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(rawContent);
+                if (doc.RootElement.TryGetProperty("message", out var msgProp))
+                {
+                    return msgProp.GetString() ?? defaultMessage;
+                }
+            }
+            catch { }
+            return string.IsNullOrWhiteSpace(rawContent) ? defaultMessage : rawContent;
+        }
+
         public IActionResult Index()
         {
             return View();
         }
 
-        public async Task<IActionResult> Accounts()
+        public async Task<IActionResult> Accounts(string? keyword)
         {
             var client = _clientFactory.CreateClient("BackendAPI");
-            var response = await client.GetAsync("api/SystemAccounts");
+            var url = string.IsNullOrWhiteSpace(keyword)
+                ? "api/SystemAccounts"
+                : $"api/SystemAccounts/search?keyword={Uri.EscapeDataString(keyword.Trim())}";
+
+            ViewBag.Keyword = keyword;
+            var response = await client.GetAsync(url);
             
             if (response.IsSuccessStatusCode)
             {
@@ -51,7 +70,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to create account: {errorMsg}";
+                TempData["Error"] = $"Failed to create account: {ExtractErrorMessage(errorMsg, "Unknown error")}";
             }
             return RedirectToAction(nameof(Accounts));
         }
@@ -70,7 +89,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to update account: {errorMsg}";
+                TempData["Error"] = $"Failed to update account: {ExtractErrorMessage(errorMsg, "Unknown error")}";
             }
             return RedirectToAction(nameof(Accounts));
         }
@@ -88,13 +107,16 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to delete account: {errorMsg}";
+                TempData["Error"] = $"Failed to delete account: {ExtractErrorMessage(errorMsg, "Account cannot be deleted.")}";
             }
             return RedirectToAction(nameof(Accounts));
         }
 
         public async Task<IActionResult> Report(DateTime? startDate, DateTime? endDate)
         {
+            ViewBag.StartDate = startDate;
+            ViewBag.EndDate = endDate;
+
             if (!startDate.HasValue || !endDate.HasValue)
             {
                 return View(new List<NewsStatisticDTO>());

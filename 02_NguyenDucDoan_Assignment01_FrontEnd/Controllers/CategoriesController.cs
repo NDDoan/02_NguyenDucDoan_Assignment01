@@ -18,10 +18,29 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         }
 
-        public async Task<IActionResult> Index()
+        private string ExtractErrorMessage(string rawContent, string defaultMessage)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(rawContent);
+                if (doc.RootElement.TryGetProperty("message", out var msgProp))
+                {
+                    return msgProp.GetString() ?? defaultMessage;
+                }
+            }
+            catch { }
+            return string.IsNullOrWhiteSpace(rawContent) ? defaultMessage : rawContent;
+        }
+
+        public async Task<IActionResult> Index(string? keyword)
         {
             var client = _clientFactory.CreateClient("BackendAPI");
-            var response = await client.GetAsync("api/Categories");
+            var url = string.IsNullOrWhiteSpace(keyword)
+                ? "api/Categories"
+                : $"api/Categories/search?keyword={Uri.EscapeDataString(keyword.Trim())}";
+
+            ViewBag.Keyword = keyword;
+            var response = await client.GetAsync(url);
 
             if (response.IsSuccessStatusCode)
             {
@@ -47,7 +66,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to create category: {errorMsg}";
+                TempData["Error"] = $"Failed to create category: {ExtractErrorMessage(errorMsg, "Unknown error")}";
             }
             return RedirectToAction(nameof(Index));
         }
@@ -66,7 +85,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to update category: {errorMsg}";
+                TempData["Error"] = $"Failed to update category: {ExtractErrorMessage(errorMsg, "Unknown error")}";
             }
             return RedirectToAction(nameof(Index));
         }
@@ -84,7 +103,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                TempData["Error"] = $"Failed to delete category: {errorMsg}";
+                TempData["Error"] = $"Failed to delete category: {ExtractErrorMessage(errorMsg, "Category cannot be deleted.")}";
             }
             return RedirectToAction(nameof(Index));
         }
