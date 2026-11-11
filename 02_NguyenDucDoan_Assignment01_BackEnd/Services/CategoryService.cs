@@ -46,7 +46,7 @@ public class CategoryService : ICategoryService
         {
             var parentExists = await _repository.ExistsAsync(dto.ParentCategoryId.Value);
             if (!parentExists)
-                throw new InvalidOperationException($"Parent category with ID {dto.ParentCategoryId.Value} does not exist.");
+                throw new ArgumentException($"Parent category with ID {dto.ParentCategoryId.Value} does not exist.");
         }
 
         var category = new Category
@@ -69,11 +69,11 @@ public class CategoryService : ICategoryService
         if (dto.ParentCategoryId.HasValue)
         {
             if (dto.ParentCategoryId.Value == id)
-                throw new InvalidOperationException("A category cannot be its own parent.");
+                throw new ArgumentException("A category cannot be its own parent.");
 
             var parentExists = await _repository.ExistsAsync(dto.ParentCategoryId.Value);
             if (!parentExists)
-                throw new InvalidOperationException($"Parent category with ID {dto.ParentCategoryId.Value} does not exist.");
+                throw new ArgumentException($"Parent category with ID {dto.ParentCategoryId.Value} does not exist.");
         }
 
         category.CategoryName = dto.CategoryName;

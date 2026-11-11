@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
 {
-    [Authorize(Roles = "Staff, Lecturer")]
+    [Authorize(Roles = "Staff")]
     public class StaffController : Controller
     {
         private readonly IHttpClientFactory _clientFactory;
@@ -59,9 +59,7 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var client = _clientFactory.CreateClient("BackendAPI");
 
-            // Fetch current role to avoid overriding it with 0 if not passed
-            var roleClaim = User.FindFirstValue(ClaimTypes.Role);
-            dto.AccountRole = roleClaim == "Staff" ? 1 : (roleClaim == "Lecturer" ? 2 : 1);
+            dto.AccountRole = 1;
 
             var content = new StringContent(JsonSerializer.Serialize(dto), Encoding.UTF8, "application/json");
             var response = await client.PutAsync($"api/SystemAccounts/{userId}", content);

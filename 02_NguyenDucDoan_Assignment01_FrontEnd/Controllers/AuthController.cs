@@ -41,28 +41,10 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
                 );
 
-                if (result != null)
+                if (result != null && result.Success && !string.IsNullOrEmpty(result.Token))
                 {
-                    var claims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.NameIdentifier, result.AccountId.ToString()),
-                        new Claim(ClaimTypes.Email, result.AccountEmail ?? ""),
-                        new Claim(ClaimTypes.Name, result.AccountName ?? ""),
-                        new Claim("IsAdmin", result.IsAdmin.ToString()),
-                        new Claim("Token", result.Token ?? "")
-                    };
-
-                    if (result.IsAdmin)
-                    {
-                        claims.Add(new Claim(ClaimTypes.Role, "Admin"));
-                    }
-                    else
-                    {
-                        if (result.AccountRole == 1)
-                            claims.Add(new Claim(ClaimTypes.Role, "Staff"));
-                        else if (result.AccountRole == 2)
-                            claims.Add(new Claim(ClaimTypes.Role, "Lecturer"));
-                    }
+                    var claims = ExtractClaimsFromToken(result.Token);
+                    claims.Add(new Claim("Token", result.Token));
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                     var authProperties = new AuthenticationProperties
@@ -75,15 +57,58 @@ namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
                         new ClaimsPrincipal(claimsIdentity),
                         authProperties);
 
-                    if (result.IsAdmin)
+                    var roleClaim = claims.FirstOrDefault(c => c.Type == ClaimTypes.Role || c.Type == "role")?.Value;
+                    var isAdminClaim = claims.FirstOrDefault(c => c.Type == "IsAdmin")?.Value;
+                    var isAdmin = string.Equals(isAdminClaim, "true", StringComparison.OrdinalIgnoreCase) || roleClaim == "Admin";
+
+                    if (isAdmin)
                         return RedirectToAction("Index", "Admin");
-                    else
+                    else if (roleClaim == "Staff")
                         return RedirectToAction("Index", "Staff");
+                    else
+                        return RedirectToAction("Index", "Home");
                 }
             }
 
             ViewBag.Error = "Invalid email or password.";
             return View(dto);
+        }
+
+        private static List<Claim> ExtractClaimsFromToken(string token)
+        {
+            var claims = new List<Claim>();
+            try
+            {
+                var parts = token.Split('.');
+                if (parts.Length > 1)
+                {
+                    var payload = parts[1];
+                    switch (payload.Length % 4)
+                    {
+                        case 2: payload += "=="; break;
+                        case 3: payload += "="; break;
+                    }
+                    var jsonBytes = Convert.FromBase64String(payload.Replace('-', '+').Replace('_', '/'));
+                    using var doc = JsonDocument.Parse(jsonBytes);
+                    foreach (var prop in doc.RootElement.EnumerateObject())
+                    {
+                        var claimType = prop.Name switch
+                        {
+                            "role" or "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" => ClaimTypes.Role,
+                            "nameid" or "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier" => ClaimTypes.NameIdentifier,
+                            "email" or "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" => ClaimTypes.Email,
+                            "unique_name" or "name" or "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name" => ClaimTypes.Name,
+                            _ => prop.Name
+                        };
+                        claims.Add(new Claim(claimType, prop.Value.GetString() ?? prop.Value.ToString()));
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback if parsing fails
+            }
+            return claims;
         }
 
         [HttpGet]

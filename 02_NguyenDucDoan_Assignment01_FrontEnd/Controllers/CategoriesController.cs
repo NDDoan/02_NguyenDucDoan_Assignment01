@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
 {
-    [Authorize(Roles = "Staff, Lecturer")]
+    [Authorize(Roles = "Staff")]
     public class CategoriesController : Controller
     {
         private readonly IHttpClientFactory _clientFactory;

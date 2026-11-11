@@ -1,6 +1,5 @@
 using _02_NguyenDucDoan_Assignment01_BackEnd.DTOs;
 using _02_NguyenDucDoan_Assignment01_BackEnd.Repositories;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Controllers;
@@ -18,6 +17,7 @@ public class TagsController : ControllerBase
 
     /// <summary>GET all tags</summary>
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<TagDTO>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<TagDTO>>> GetAll()
     {
         var tags = await _tagRepository.GetAllAsync();
@@ -32,6 +32,8 @@ public class TagsController : ControllerBase
 
     /// <summary>GET tag by ID</summary>
     [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(TagDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<TagDTO>> GetById(int id)
     {
         var tag = await _tagRepository.GetByIdAsync(id);

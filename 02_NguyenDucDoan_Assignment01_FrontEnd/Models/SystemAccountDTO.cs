@@ -59,10 +59,6 @@ public class LoginDTO
 
 public class LoginResponseDTO
 {
-    public short AccountId { get; set; }
-    public string? AccountName { get; set; }
-    public string? AccountEmail { get; set; }
-    public int? AccountRole { get; set; }
-    public bool IsAdmin { get; set; }
+    public bool Success { get; set; }
     public string? Token { get; set; }
 }

@@ -75,14 +75,14 @@ public class NewsArticleService : INewsArticleService
         if (dto.CategoryId.HasValue)
         {
             if (!await _categoryRepository.ExistsAsync(dto.CategoryId.Value))
-                throw new InvalidOperationException($"Category with ID '{dto.CategoryId.Value}' does not exist.");
+                throw new ArgumentException($"Category with ID '{dto.CategoryId.Value}' does not exist.");
         }
 
         if (dto.CreatedById.HasValue)
         {
             var account = await _accountRepository.GetByIdAsync(dto.CreatedById.Value);
             if (account == null)
-                throw new InvalidOperationException($"Account with ID '{dto.CreatedById.Value}' does not exist.");
+                throw new ArgumentException($"Account with ID '{dto.CreatedById.Value}' does not exist.");
         }
 
         var article = new NewsArticle
@@ -111,14 +111,14 @@ public class NewsArticleService : INewsArticleService
         if (dto.CategoryId.HasValue)
         {
             if (!await _categoryRepository.ExistsAsync(dto.CategoryId.Value))
-                throw new InvalidOperationException($"Category with ID '{dto.CategoryId.Value}' does not exist.");
+                throw new ArgumentException($"Category with ID '{dto.CategoryId.Value}' does not exist.");
         }
 
         if (dto.UpdatedById.HasValue)
         {
             var account = await _accountRepository.GetByIdAsync(dto.UpdatedById.Value);
             if (account == null)
-                throw new InvalidOperationException($"Account with ID '{dto.UpdatedById.Value}' does not exist.");
+                throw new ArgumentException($"Account with ID '{dto.UpdatedById.Value}' does not exist.");
         }
 
         var updatedEntity = new NewsArticle

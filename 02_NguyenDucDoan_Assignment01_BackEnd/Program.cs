@@ -1,5 +1,7 @@
 using _02_NguyenDucDoan_Assignment01_BackEnd.Models;
 using _02_NguyenDucDoan_Assignment01_BackEnd.Services;
+using _02_NguyenDucDoan_Assignment01_BackEnd.Filters;
+using _02_NguyenDucDoan_Assignment01_BackEnd.Middlewares;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.OData;
 using Microsoft.OData.ModelBuilder;
@@ -8,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using _02_NguyenDucDoan_Assignment01_BackEnd.Repositories;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,12 +21,58 @@ modelBuilder.EntitySet<CategoryDTO>("Categories").EntityType.HasKey(x => x.Categ
 modelBuilder.EntitySet<NewsArticleDTO>("NewsArticles").EntityType.HasKey(x => x.NewsArticleId);
 
 // Add services to the container.
-builder.Services.AddControllers().AddOData(options => 
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ValidateModelFilter>();
+})
+.ConfigureApiBehaviorOptions(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+        ValidateModelFilter.CreateValidationErrorResult(context.ModelState, context.HttpContext.Response);
+})
+.AddOData(options =>
     options.Select().Filter().OrderBy().Expand().Count().SetMaxTop(100)
            .AddRouteComponents("odata", modelBuilder.GetEdmModel()));
 
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "FUNewsManagement API",
+        Version = "v1",
+        Description = "API cho hệ thống FUNewsManagement - hỗ trợ OData và JWT Authentication"
+    });
+
+    // Cấu hình JWT Bearer Authentication cho Swagger
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Nhập mã JWT token trực tiếp vào ô bên dưới (Swagger sẽ tự động thêm 'Bearer ' vào header):"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // Configure JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "this_is_a_fallback_secret_key_that_is_long_enough";
@@ -42,6 +91,44 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(jwtKey)),
         ValidateIssuer = false,
         ValidateAudience = false
+    };
+
+    // --- CẤU HÌNH HEADERS & RESPONSE ---
+    options.Events = new JwtBearerEvents
+    {
+        OnChallenge = async context =>
+        {
+            context.HandleResponse();
+
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+            context.Response.Headers["X-Auth-Error"] = "Unauthorized - Invalid or missing token";
+
+            var responseBody = new
+            {
+                statusCode = 401,
+                error = "Unauthorized",
+                message = "Bạn chưa đăng nhập hoặc token đã hết hạn / không hợp lệ."
+            };
+
+            await context.Response.WriteAsJsonAsync(responseBody);
+        },
+
+        OnForbidden = async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/json";
+            context.Response.Headers["X-Auth-Error"] = "Forbidden - Insufficient permissions";
+
+            var responseBody = new
+            {
+                statusCode = 403,
+                error = "Forbidden",
+                message = "Tài khoản của bạn không có đủ quyền (Role) để thực hiện thao tác này."
+            };
+
+            await context.Response.WriteAsJsonAsync(responseBody);
+        }
     };
 });
 
@@ -67,7 +154,8 @@ builder.Services.AddCors(options =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .WithExposedHeaders("Location", "X-Application-Name", "X-API-Version", "X-Auth-Error", "X-Error-Type", "X-Validation-Error", "X-Created-Status");
     });
 });
 
@@ -82,6 +170,22 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontEnd");
+
+// Thêm các Response Headers dùng chung cho toàn hệ thống
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Application-Name"] = "FUNewsManagement";
+        context.Response.Headers["X-API-Version"] = "1.0.0";
+        return Task.CompletedTask;
+    });
+    await next();
+});
+
+// Phải đặt UseExceptionHandler() trước Authentication/Authorization/MapControllers để bắt toàn bộ lỗi
+app.UseExceptionHandler();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -1,9 +1,9 @@
 using _02_NguyenDucDoan_Assignment01_BackEnd.DTOs;
 using _02_NguyenDucDoan_Assignment01_BackEnd.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Routing.Controllers;
-using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 
 namespace _02_NguyenDucDoan_Assignment01_BackEnd.Controllers;
@@ -23,6 +23,9 @@ public class SystemAccountsController : ODataController
     [HttpGet]
     [Authorize(Roles = "Admin")]
     [EnableQuery]
+    [ProducesResponseType(typeof(IEnumerable<SystemAccountDTO>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IQueryable>> Get()
     {
         var accounts = await _service.GetAllAsync();
@@ -33,6 +36,10 @@ public class SystemAccountsController : ODataController
     [HttpGet("search")]
     [Authorize(Roles = "Admin")]
     [EnableQuery]
+    [ProducesResponseType(typeof(IEnumerable<SystemAccountDTO>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IQueryable>> Search([FromQuery] string keyword)
     {
         if (string.IsNullOrWhiteSpace(keyword))
@@ -44,8 +51,12 @@ public class SystemAccountsController : ODataController
 
     /// <summary>GET a system account by ID (Admin or own profile)</summary>
     [HttpGet("({id:int})")]
-    [Authorize(Roles = "Admin,Staff,Lecturer")]
+    [Authorize(Roles = "Admin,Staff")]
     [EnableQuery]
+    [ProducesResponseType(typeof(SystemAccountDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById([FromRoute] short id)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -66,28 +77,28 @@ public class SystemAccountsController : ODataController
     /// <summary>POST create a new system account (Admin only)</summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(SystemAccountDTO), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Post([FromBody] SystemAccountCreateDTO dto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
-        try
-        {
-            var created = await _service.CreateAsync(dto);
-            return StatusCode(201, created);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
+        var created = await _service.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = created.AccountId }, created);
     }
 
     /// <summary>PUT update an existing system account (Admin or own profile)</summary>
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "Admin,Staff,Lecturer")]
+    [Authorize(Roles = "Admin,Staff")]
+    [ProducesResponseType(typeof(SystemAccountDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Put([FromRoute] short id, [FromBody] SystemAccountUpdateDTO dto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var isAdmin = User.IsInRole("Admin");
 
@@ -104,49 +115,41 @@ public class SystemAccountsController : ODataController
             }
         }
 
-        try
-        {
-            var updated = await _service.UpdateAsync(id, dto);
-            if (updated == null)
-                return NotFound(new { message = $"Account with ID {id} not found." });
+        var updated = await _service.UpdateAsync(id, dto);
+        if (updated == null)
+            return NotFound(new { message = $"Account with ID {id} not found." });
 
-            return Ok(updated);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
+        return Ok(updated);
     }
 
     /// <summary>DELETE a system account (Admin only) - fails if account has news articles</summary>
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete([FromRoute] short id)
     {
-        try
-        {
-            var result = await _service.DeleteAsync(id);
-            if (!result)
-                return NotFound(new { message = $"Account with ID {id} not found." });
+        var result = await _service.DeleteAsync(id);
+        if (!result)
+            return NotFound(new { message = $"Account with ID {id} not found." });
 
-            return NoContent();
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
+        return NoContent();
     }
 
     /// <summary>POST login with email and password</summary>
     [HttpPost("login")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(LoginResponseDTO), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginDTO dto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
         var result = await _service.LoginAsync(dto);
         if (result == null)
-            return Unauthorized(new { message = "Invalid email or password." });
+            return Unauthorized(new { success = false, message = "Invalid email or password." });
 
         return Ok(result);
     }

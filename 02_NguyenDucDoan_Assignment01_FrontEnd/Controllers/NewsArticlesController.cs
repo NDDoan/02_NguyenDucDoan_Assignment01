@@ -7,7 +7,7 @@ using System.Security.Claims;
 
 namespace _02_NguyenDucDoan_Assignment01_FrontEnd.Controllers
 {
-    [Authorize(Roles = "Staff, Lecturer")]
+    [Authorize(Roles = "Staff")]
     public class NewsArticlesController : Controller
     {
         private readonly IHttpClientFactory _clientFactory;

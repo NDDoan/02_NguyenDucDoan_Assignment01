@@ -108,7 +108,8 @@ public class SystemAccountService : ISystemAccountService
                     new Claim(ClaimTypes.NameIdentifier, "0"),
                     new Claim(ClaimTypes.Email, adminEmail),
                     new Claim(ClaimTypes.Name, "Administrator"),
-                    new Claim(ClaimTypes.Role, "Admin")
+                    new Claim(ClaimTypes.Role, "Admin"),
+                    new Claim("IsAdmin", "True")
                 }),
                 Expires = DateTime.UtcNow.AddHours(2),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
@@ -117,11 +118,7 @@ public class SystemAccountService : ISystemAccountService
 
             return new LoginResponseDTO
             {
-                AccountId = 0,
-                AccountName = "Administrator",
-                AccountEmail = adminEmail,
-                AccountRole = 0,
-                IsAdmin = true,
+                Success = true,
                 Token = tokenHandler.WriteToken(token)
             };
         }
@@ -137,13 +134,20 @@ public class SystemAccountService : ISystemAccountService
         {
             new Claim(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
             new Claim(ClaimTypes.Email, account.AccountEmail ?? ""),
-            new Claim(ClaimTypes.Name, account.AccountName ?? "")
+            new Claim(ClaimTypes.Name, account.AccountName ?? ""),
+            new Claim("IsAdmin", "False")
         };
 
         if (account.AccountRole == 1)
+        {
             claims.Add(new Claim(ClaimTypes.Role, "Staff"));
+            claims.Add(new Claim("AccountRole", "1"));
+        }
         else if (account.AccountRole == 2)
+        {
             claims.Add(new Claim(ClaimTypes.Role, "Lecturer"));
+            claims.Add(new Claim("AccountRole", "2"));
+        }
 
         var userTokenDescriptor = new SecurityTokenDescriptor
         {
@@ -155,11 +159,7 @@ public class SystemAccountService : ISystemAccountService
 
         return new LoginResponseDTO
         {
-            AccountId = account.AccountId,
-            AccountName = account.AccountName,
-            AccountEmail = account.AccountEmail,
-            AccountRole = account.AccountRole,
-            IsAdmin = false,
+            Success = true,
             Token = userTokenHandler.WriteToken(userToken)
         };
     }
